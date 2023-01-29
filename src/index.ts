@@ -3,13 +3,24 @@ import { Application } from 'abc/mod.ts';
 import { apiMethodMaker } from './apiMethodMaker.ts';
 import { z } from 'zod/mod.ts';
 import { cryptoRandomString } from 'crs/mod.ts';
+import { DB } from 'sqlite/mod.ts';
 
-const urlCodes = new Map<string, string>();
-urlCodes.set('gg', 'https://google.com');
-
+const db = new DB('db.db');
+db.execute(`
+  CREATE TABLE IF NOT EXISTS urlCodes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    urlCode CHARACTER(10) NOT NULL,
+    redirectUrl TEXT NOT NULL
+  )
+`);
+type Row = [string, string];
+const getRedirectCode = db.prepareQuery<[string], { redirectUrl: string }, { urlCode: string }>(
+  'SELECT redirectUrl FROM urlCodes WHERE urlCode = :urlCode'
+);
 const findShortUrl = (urlCode: string) => {
-  if (urlCodes.has(urlCode)) return urlCodes.get(urlCode);
-  return null;
+  const urlCodes = getRedirectCode.first({ urlCode });
+  if (!urlCodes) return null;
+  return urlCodes[0];
 };
 
 const redirectApp = new Application();
@@ -35,18 +46,23 @@ adminApp
     '/api',
     apiMethodMaker(
       { body: z.object({ originalUrl: z.string() }), params: z.object({}) },
-      (ctx, body) => {
-        const existingShortUrl = [...urlCodes].find(
-          ([_code, redirectUrl]) => body.originalUrl === redirectUrl
+      (ctx, { originalUrl }) => {
+        const existingShortUrl = db.query<[string]>(
+          'SELECT urlCode FROM urlCodes WHERE redirectUrl = :originalUrl',
+          { originalUrl }
         );
-        if (existingShortUrl) {
-          ctx.string(`http://localhost:6969/${existingShortUrl[0]}`, Status.OK);
+        if (existingShortUrl.length > 0) {
+          ctx.string(`http://localhost:6969/${existingShortUrl[0][0]}`, Status.OK);
           return;
         }
 
         const urlCode = cryptoRandomString({ length: 10, type: 'url-safe' });
-        const shortUrl = body.originalUrl;
-        urlCodes.set(urlCode, shortUrl);
+        const redirectUrl = originalUrl;
+
+        db.query('INSERT INTO urlCodes (urlCode, redirectUrl) VALUES (:urlCode, :redirectUrl)', {
+          urlCode,
+          redirectUrl,
+        });
 
         ctx.string(`http://localhost:6969/${urlCode}`, Status.Created);
         return;

@@ -3,9 +3,10 @@
     "std/": "https://deno.land/std@0.175.0/",
     "zod/": "https://deno.land/x/zod@v3.20.2/",
     "abc/": "https://deno.land/x/abc@v1.3.3/",
-    "crs/": "https://deno.land/x/crypto_random_string@1.1.0/"
+    "crs/": "https://deno.land/x/crypto_random_string@1.1.0/",
+    "sqlite/": "https://deno.land/x/sqlite@v3.7.0/"
   },
   "tasks": {
-    "dev": "deno run --allow-net --watch src/index.ts"
+    "dev": "deno run --allow-net --allow-write --allow-read --watch src/index.ts"
   }
 }
