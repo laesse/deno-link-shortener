@@ -69,5 +69,25 @@ adminApp
       }
     )
   )
-  .get('/api', () => 'hi')
+  .get(
+    '/',
+    apiMethodMaker({ body: z.unknown(), params: z.object({}) }, (ctx) => {
+      let out = `<!DOCTYPE html><html><head><title>deno shortener management</title></head>
+        <body><h1>link shortener</h1>
+        <table><thead><tr><th>shortUrl</th><th>redirectUrl</th></tr></thead>
+        <tbody>`;
+      for (const [urlCode, redirectUrl] of db.query<[string, string]>(
+        'SELECT urlCode, redirectUrl FROM urlCodes'
+      )) {
+        out += `<tr>
+          <td><a href="http://localhost:6969/${urlCode}" alt="short">http://localhost:6969/${urlCode}</a></td>
+          <td><a href="${redirectUrl}" alt="effective">${redirectUrl}</a></td>
+        </tr>`;
+      }
+
+      out += '</tbody></table></body></html>';
+
+      ctx.html(out, Status.OK);
+    })
+  )
   .start({ port: 4269 });
